@@ -22,7 +22,7 @@
 			<fanart></fanart>
 			<screenshot></screenshot>
 		</assets>
-		<news>Now using the player.php from the official website to fetch stream url</news>
+		<news>Mediastore implemented</news>
 	</extension>
 </addon>
 

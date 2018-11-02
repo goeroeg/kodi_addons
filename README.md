@@ -12,7 +12,7 @@ At the moment only the live streams are supported, but I plan to implement the V
 
 ### Deployment to KODI
 
-Download and zip the folder `plugin.mediaklikk.hu`, copy the zip-file to a location you can reach from KODI and select "*Install from zip*" ("*unknown sources*" have to be enabled in the settings)
+Download and zip the folder `plugin.video.mediaklikk`, copy the zip-file to a location you can reach from KODI and select "*Install from zip*" ("*unknown sources*" have to be enabled in the settings)
 
 >If you are not sure what is meant by the above, then this addon is probably not yet for you.
 

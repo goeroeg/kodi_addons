@@ -1,3 +1,5 @@
 2018.10.23 v. 0.1.0 Created from tutorial
 
 2018.10.28 v. 0.2.0 Changed hardcoded stream URLs to use the player script from mediaklikk.hu
+
+2018.11.02 v. 0.2.1 Implementation of Mediastore
