@@ -1,16 +1,14 @@
+# -*- coding: utf-8 -*-
+
 import sys
 import re
 import json
+
 from urllib import urlencode
 from urlparse import parse_qsl
 
-sys.path.append("../script.module.requests/lib")
-sys.path.append("../script.module.urllib3/lib")
-sys.path.append("../script.module.certifi/lib")
-
 import xbmcgui
 import xbmcplugin
-
 import requests
 
 # Get the plugin url in plugin:// notation.
@@ -18,23 +16,17 @@ _url = sys.argv[0]
 # Get the plugin handle as an integer number.
 _handle = int(sys.argv[1])
 
-mediastoreurl = "https://www.mediaklikk.hu/mediatar/"
-mediastorevideosurl= "https://www.mediaklikk.hu/wp-content/plugins/hms-mediaklikk/interfaces/mediaStoreData.php?action=videos&id="
+mediastore_url = "https://www.mediaklikk.hu/mediatar/"
+all_programs_url = "https://www.mediaklikk.hu/iface/mediaklikk/allPrograms/allMusor.json"
 
-playerurl = "https://player.mediaklikk.hu/playernew/player.php?video=_videoID_&flashmajor=31&flashminor=0&embedded=0"
+mediastore_videos_url= "https://www.mediaklikk.hu/wp-content/plugins/hms-mediaklikk/interfaces/mediaStoreData.php?action=videos&id="
 
-#playerurl = "https://player.mediaklikk.hu/playernew/player.php?video=_videoID_&flashmajor=31&flashminor=0&osfamily=Ubuntu&osversion=null&browsername=Kodi&browserversion=63.0&title=M1&contentid=_videoID_&embedded=0"
+player_url = "https://player.mediaklikk.hu/playernew/player.php?video=_videoID_&flashmajor=31&flashminor=0&embedded=0"
 
+video_programs = { "m1" : "M1", "m2" : "M2", "m4" : "M4", "m5" : "M5", "dn" : "Duna", "dw" : "Duna World"}
 
-# "file": "\/\/c202-node62-cdn.connectmedia.hu\/1100\/7009c6254e877d9051ddeda3741275cf\/5bd5e317\/index.m3u8?v=5i",
-
-videoprograms = { "m1", "m2", "m4", "m5", "dn", "dw" }
-
-#streammatcher = re.compile(".*\\\"file\\\"\\:\\s\\\"(?P<streamurl>.*index\\.m3u8\\?v\\=5i).*", re.MULTILINE|re.DOTALL)
-streammatcher = re.compile(".*\\\"file\\\"\\:\\s\\\"(?P<streamurl>.*\\.m3u8).*", re.MULTILINE|re.DOTALL)
-
-programsmatcher = re.compile(".*mediaStore\\(.*(?P<data>\\[.*\\])\\s*\\)\\;.*", re.MULTILINE|re.DOTALL)
-#programsmatcher = re.compile(".*new\\smediaStore\\((?P<data>\\[.*\\])\\)\\;.*", re.MULTILINE|re.DOTALL)
+stream_matcher = re.compile(".*\\\"file\\\"\\:\\s\\\"(?P<streamurl>.*\\.m3u8).*", re.MULTILINE|re.DOTALL)
+programs_matcher = re.compile(".*mediaStore\\(.*(?P<data>\\[.*\\])\\s*\\)\\;.*", re.MULTILINE|re.DOTALL)
 
 VIDEOS = {'Live': [{'name': 'M1',
                        'thumb': "", # 'https://www.mediaklikk.hu/wp-content/plugins/hms-mediaklikk/common/styles/images/mtva_logos_sprite_light_2x.png',
@@ -61,7 +53,9 @@ VIDEOS = {'Live': [{'name': 'M1',
                        'video': 'dunaworldlive',
                        'genre': 'Live TV'}					   
                       ],
-          'Media' : []}
+          'Médiatár' : [],
+          'Témák' : []
+          }
 
 def get_url(**kwargs):
     """
@@ -103,12 +97,12 @@ def get_videos(category):
     if category == "Live":
         return VIDEOS[category]
     else:
-        response = requests.get(mediastorevideosurl + category).text
+        response = requests.get(mediastore_videos_url + category).text
         data = json.loads(response)
         return data["Items"]
 
 
-def list_categories():
+def list_main():
     """
     Create the list of video categories in the Kodi interface.
     """
@@ -127,9 +121,9 @@ def list_categories():
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-       #list_item.setArt({'thumb': VIDEOS[category][0]['thumb'],
-       #                  'icon': VIDEOS[category][0]['thumb'],
-       #                  'fanart': VIDEOS[category][0]['thumb']})
+        list_item.setArt({"thumb": "icon.png",
+                          "icon": "icon.png",
+                          "fanart": "icon.png"})
         # Set additional info for the list item.
         # Here we use a category name for both properties for for simplicity's sake.
         # setInfo allows to set various information for an item.
@@ -146,26 +140,68 @@ def list_categories():
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
 def get_programs():
-    response = requests.get(mediastoreurl).text
-    rawdata = programsmatcher.match(response).group("data")
+    response = requests.get(mediastore_url).text
+    rawdata = programs_matcher.match(response).group("data")
     
     data = json.loads(rawdata)
 
     programs = []
+    keys = video_programs.keys()
 
     for item in data:   
-        if item["Channel"] in videoprograms:
+        if item["Channel"] in keys:
             programs.append(item)
     
     return programs
 
-def list_videos(category):
+def get_programs_by_topics():
+    response = requests.get(all_programs_url).text
+    programs = json.loads(response)
+
+    result = { }
+
+    for item in programs:
+        for key in item["desc"]:
+            if (result.get(key) == None): result[key] = []
+            result[key] += [item]
+
+    return result
+
+
+def list_programs(programs):
+    progs = json.loads(programs)
+
+    for program in progs:
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=program["title"])
+        list_item.setProperty("IsPlayable", "false")
+
+        list_item.setArt({"thumb": program["icon"], "icon": program["icon"], "fanart": program["icon"]})
+
+        list_item.setInfo('video', {'title': program["title"],
+                                    'genre': program["topic"] + "(" + program["channel"] + ")",
+                                    'mediatype': 'video'})
+
+        url = get_url(action="listing", category=program["id"])
+        is_folder = True
+
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+    
+
+def list_items(category):
     """
     Create the list of playable videos in the Kodi interface.
     :param category: Category name
@@ -205,31 +241,55 @@ def list_videos(category):
             is_folder = False
             # Add our item to the Kodi virtual folder listing.
             xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
-    elif category == "Media":
-        programs=get_programs()
 
-        for program in programs:
+    elif category == 'Médiatár':
+        proginfos = get_programs()
+
+        for program in proginfos:            
             # Create a list item with a text label and a thumbnail image.
             list_item = xbmcgui.ListItem(label=program["Title"])
-            # Set additional info for the list item.
-            # 'mediatype' is needed for skin to display info for this ListItem correctly.
-            list_item.setInfo('video', {'title': program["Title"],
-                                        'genre': program["Title"],
-                                        'mediatype': 'video'})
-            # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
-            # Here we use the same image for all items for simplicity's sake.
-            # In a real-life plugin you need to set each image accordingly.
-            #list_item.setArt({'thumb': video['thumb'], 'icon': video['thumb'], 'fanart': video['thumb']})
-            # Set 'IsPlayable' property to 'true'.
-            # This is mandatory for playable items!
             list_item.setProperty('IsPlayable', 'false')
-            # Create a URL for a plugin recursive call.
-            # Example: plugin://plugin.video.example/?action=play&video=http://www.vidsplay.com/wp-content/uploads/2017/04/crab.mp4
+
+            list_item.setInfo('video', {'title': program["Title"],
+                                        'mediatype': 'video'})
 
             url = get_url(action='listing', category=program["Id"])
-            # Add the list item to a virtual Kodi folder.
-            # is_folder = False means that this item won't open any sub-list.
             is_folder = True
+
+            # Add our item to the Kodi virtual folder listing.
+            xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    elif category == 'Témák':
+        proginfos = get_programs()
+        programs = get_programs_by_topics()
+
+        for topic in programs.keys():
+            plist = []
+            for program in programs[topic]:
+                proginfo = next((item for item in proginfos if item["Title"]==program["value"]), None)
+                if proginfo != None:
+                    plist += [{
+                            "title" : program["value"],
+                            "id" : proginfo["Id"],
+                            "icon" : "https://" + program["icon"],
+                            "channel" : video_programs[proginfo["Channel"]],
+                            "topic" : topic
+                        }]
+
+
+           # jsondump = json.dumps(plist)
+
+            url = get_url(action='listprograms', programs=json.dumps(plist))
+            is_folder = True
+
+            # Create a list item with a text label and a thumbnail image.
+            list_item = xbmcgui.ListItem(label=topic)
+            list_item.setProperty('IsPlayable', 'false')
+
+            list_item.setInfo('video', {'title': topic,
+                                        'genre': topic,
+                                        'mediatype': 'video'})
+
             # Add our item to the Kodi virtual folder listing.
             xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     else:
@@ -241,7 +301,7 @@ def list_videos(category):
                                         'mediatype': 'video'})
             list_item.setArt({'thumb': video["Image"], 'icon': video['Image'], 'fanart': video['Image']})
             list_item.setProperty('IsPlayable', 'true')
-            url = get_url(action='play', video=video["Token"])#.replace("%25", "%") # bug in get_url ?
+            url = get_url(action='play', video=video["Token"])
             xbmcplugin.addDirectoryItem(_handle, url, list_item, False)
 
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
@@ -256,10 +316,12 @@ def play_video(path):
     :param path: Fully-qualified video URL
     :type path: str
     """
-    url = playerurl.replace("_videoID_", path)
+
+    url = player_url.replace("_videoID_", path)
     response = requests.get(url).text
 
-    streamurl = "http:" + streammatcher.match(response).group("streamurl").replace("\\/", "/")
+    # parse stream url from player response
+    streamurl = "http:" + stream_matcher.match(response).group("streamurl").replace("\\/", "/")
 
     # Create a playable item with a path to play.
     play_item = xbmcgui.ListItem(path=streamurl)
@@ -279,12 +341,15 @@ def router(paramstring):
     params = dict(parse_qsl(paramstring))
     # Check the parameters passed to the plugin
     if params:
-        if params['action'] == 'listing':
+        if params["action"] == "listprograms":
             # Display the list of videos in a provided category.
-            list_videos(params['category'])
-        elif params['action'] == 'play':
+            list_programs(params['programs'])
+        elif params["action"] == "listing":
+            # Display the list of videos in a provided category.
+            list_items(params["category"])
+        elif params["action"] == "play":
             # Play a video from a provided URL.
-            play_video(params['video'])
+            play_video(params["video"])
         else:
             # If the provided paramstring does not contain a supported action
             # we raise an exception. This helps to catch coding errors,
@@ -293,11 +358,11 @@ def router(paramstring):
     else:
         # If the plugin is called from Kodi UI without any parameters,
         # display the list of video categories
-        list_categories()
+        list_main()
 
 
 if __name__ == '__main__':
     # Call the router function and pass the plugin call parameters to it.
     # We use string slicing to trim the leading '?' from the plugin call paramstring
     router(sys.argv[2][1:])
-    
+
