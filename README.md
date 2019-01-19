@@ -4,7 +4,7 @@
 
 This is a [KODI](https://kodi.tv/) addon for watching live TV streams from the hungarian site [Mediaklikk.hu](https://www.mediaklikk.hu/)
 
-At the moment only the live streams are supported, but I plan to implement the VOD-s from the media library too.
+Live streams are supported and also the mediastore (_Médiatár_) and the filmstore (_Filmtár_). Radio audio streams not yet supported.
 
 **It is in a very early stage, use it at your own risk.**
 

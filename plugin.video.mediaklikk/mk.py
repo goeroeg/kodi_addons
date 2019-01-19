@@ -18,6 +18,7 @@ _handle = int(sys.argv[1])
 
 mediastore_url = "https://www.mediaklikk.hu/mediatar/"
 all_programs_url = "https://www.mediaklikk.hu/iface/mediaklikk/allPrograms/allMusor.json"
+filmstore_url = "https://www.mediaklikk.hu/iface/cover/cover_599.html"
 
 mediastore_videos_url= "https://www.mediaklikk.hu/wp-content/plugins/hms-mediaklikk/interfaces/mediaStoreData.php?action=videos&id="
 
@@ -26,7 +27,15 @@ player_url = "https://player.mediaklikk.hu/playernew/player.php?video=_videoID_&
 video_programs = { "m1" : "M1", "m2" : "M2", "m4" : "M4", "m5" : "M5", "dn" : "Duna", "dw" : "Duna World"}
 
 stream_matcher = re.compile(".*\\\"file\\\"\\:\\s\\\"(?P<streamurl>.*\\.m3u8).*", re.MULTILINE|re.DOTALL)
+# .*\"file\"\:\s\"(?P<streamurl>.*\.m3u8).*
 programs_matcher = re.compile(".*mediaStore\\(.*(?P<data>\\[.*\\])\\s*\\)\\;.*", re.MULTILINE|re.DOTALL)
+# .*mediaStore\(.*(?P<data>\[.*\])\s*\)\;.*
+films_matcher = re.compile("(data-src\\=\\\"(?P<image>//mediaklikk.cms.mtv.hu/[^\\\"]*)\\\"\\s*\\>(?:[\\s\\n\\r]*\\<[^\\>]*\\>)*\\<a[\\s\\n\\r]*href\\=\\\"(?P<data>//www.mediaklikk.hu/[^\\\"]*)\\\"\\s?\\>(?P<title>[^\\<]*)\\</a\\>)", re.MULTILINE|re.DOTALL)
+# (data-src\=\"(?P<image>//mediaklikk.cms.mtv.hu/[^\"]*)\"\s*\>(?:[\s\n\r]*\<[^\>]*\>)*\<a[\s\n\r]*href\=\"(?P<data>//www.mediaklikk.hu/[^\"]*)\"\s?\>(?P<title>[^\<]*)\</a\>)
+film_token_matcher = re.compile("\\\"token\\\":\\\"(?P<data>[^\\\"]*)\\\"")
+# \"token\":\"(?P<data>[^\"]*)\"
+series_matcher = re.compile("(location.href\\=\\'(?P<data>//www.mediaklikk.hu/musor/[^']*)'\\\")", re.MULTILINE|re.DOTALL)
+# (location.href\\='(?P<data>//www.mediaklikk.hu/musor/[^']*)'\")
 
 VIDEOS = {'Live': [{'name': 'M1',
                        'thumb': "", # 'https://www.mediaklikk.hu/wp-content/plugins/hms-mediaklikk/common/styles/images/mtva_logos_sprite_light_2x.png',
@@ -53,8 +62,9 @@ VIDEOS = {'Live': [{'name': 'M1',
                        'video': 'dunaworldlive',
                        'genre': 'Live TV'}					   
                       ],
+          'Témák' : [],
           'Médiatár' : [],
-          'Témák' : []
+          'Filmtár' : []
           }
 
 def get_url(**kwargs):
@@ -79,7 +89,8 @@ def get_categories():
     :return: The list of video categories
     :rtype: types.GeneratorType
     """
-    return VIDEOS.iterkeys()
+    return ['Live','Témák','Médiatár','Filmtár']
+    #return VIDEOS.iterkeys()
 
 
 def get_videos(category):
@@ -96,6 +107,13 @@ def get_videos(category):
     """
     if category == "Live":
         return VIDEOS[category]
+    elif category == "Filmtár":
+        response = get_filmstore_html()
+        films = get_films(response)
+        videos = []
+        for film in films:
+            videos.append({"Title":film[0], "Image":"https:" + film[2], "Token" : film[1]})
+        return videos
     else:
         response = requests.get(mediastore_videos_url + category).text
         data = json.loads(response)
@@ -108,7 +126,7 @@ def list_main():
     """
     # Set plugin category. It is displayed in some skins as the name
     # of the current section.
-    xbmcplugin.setPluginCategory(_handle, 'My Video Collection')
+    xbmcplugin.setPluginCategory(_handle, 'MediaKlikk.hu')
     # Set plugin content. It allows Kodi to select appropriate views
     # for this type of content.
     xbmcplugin.setContent(_handle, 'videos')
@@ -142,9 +160,31 @@ def list_main():
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
 
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
-    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_NONE)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
+
+def get_filmstore_html():
+    return requests.get(filmstore_url).text         
+
+def get_series(response):
+    series = set()
+    matches = series_matcher.findall(response)
+    for match in matches:
+        series.add("https:" + match[1])
+    return series
+
+def get_films(response):
+    films = set()
+    matches = films_matcher.findall(response)
+    for match in matches:        
+        films.add((match[3].encode("latin_1").decode("utf-8"), match[2], match[1])) # codec problem in website answer
+    return films
+
+def get_film_token(film_url):
+    response = requests.get("https:" + film_url).text
+    match = film_token_matcher.findall(response)
+    return match[0]    
 
 def get_programs():
     response = requests.get(mediastore_url).text
@@ -174,7 +214,6 @@ def get_programs_by_topics():
 
     return result
 
-
 def list_programs(programs):
     progs = json.loads(programs)
 
@@ -199,7 +238,6 @@ def list_programs(programs):
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
-    
 
 def list_items(category):
     """
@@ -292,6 +330,8 @@ def list_items(category):
 
             # Add our item to the Kodi virtual folder listing.
             xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+#    elif category == 'Filmtár':
+#        pass
     else:
         videos = get_videos(category)
         for video in videos:
@@ -317,7 +357,7 @@ def play_video(path):
     :type path: str
     """
 
-    url = player_url.replace("_videoID_", path)
+    url = player_url.replace("_videoID_", get_film_token(path) if path.startswith("//") else path)
     response = requests.get(url).text
 
     # parse stream url from player response
@@ -365,4 +405,3 @@ if __name__ == '__main__':
     # Call the router function and pass the plugin call parameters to it.
     # We use string slicing to trim the leading '?' from the plugin call paramstring
     router(sys.argv[2][1:])
-
