@@ -5,6 +5,7 @@ import re
 import json
 
 from urllib import urlencode
+from urllib import quote
 from urlparse import parse_qsl
 
 import xbmcgui
@@ -178,7 +179,7 @@ def get_films(response):
     films = set()
     matches = films_matcher.findall(response)
     for match in matches:        
-        films.add((match[3].encode("latin_1").decode("utf-8"), match[2], match[1])) # codec problem in website answer
+        films.add((match[3].encode("latin_1").decode("utf-8"), match[2], quote(match[1].encode('latin_1')))) # codec problem in website answer
     return films
 
 def get_film_token(film_url):
