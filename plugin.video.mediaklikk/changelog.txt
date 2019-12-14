@@ -5,3 +5,5 @@
 2018.11.02 v. 0.2.1 Implementation of Mediastore
 
 2019.01.19 v. 0.2.2 Filmstore added
+
+2019.12.14 v. 0.2.3 Filmstore urls updated
