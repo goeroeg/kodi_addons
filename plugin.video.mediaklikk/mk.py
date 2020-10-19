@@ -31,7 +31,7 @@ stream_matcher = re.compile(".*\\\"file\\\"\\:\\s\\\"(?P<streamurl>.*\\.m3u8).*"
 # .*\"file\"\:\s\"(?P<streamurl>.*\.m3u8).*
 programs_matcher = re.compile(".*mediaStore\\(.*(?P<data>\\[.*\\])\\s*\\)\\;.*", re.MULTILINE|re.DOTALL)
 # .*mediaStore\(.*(?P<data>\[.*\])\s*\)\;.*
-films_matcher = re.compile("(data-src\\=\\\"(?P<image>//mediaklikk.hu/[^\\\"]*)\\\"\\s*\\>(?:[\\s\\n\\r]*\\<[^\\>]*\\>)*\\<a[\\s\\n\\r]*href\\=\\\"(?P<data>//mediaklikk.hu/[^\\\"]*)\\\"\\s?\\>(?P<title>[^\\<]*)\\</a\\>)", re.MULTILINE|re.DOTALL)
+films_matcher = re.compile("(data-src\\=\\\"(?P<image>//mediaklikk.hu/[^\\\"]*)\\\"[^\\>]*\\>(?:[\\s\\n\\r]*\\<[^\\>]*\\>)*\\<a[\\s\\n\\r]*href\\=\\\"(?P<data>//mediaklikk.hu/[^\\\"]*)\\\"\\s?\\>(?P<title>[^\\<]*)\\</a\\>)", re.MULTILINE|re.DOTALL)
 # (data-src\=\"(?P<image>//mediaklikk.hu/[^\"]*)\"\s*\>(?:[\s\n\r]*\<[^\>]*\>)*\<a[\s\n\r]*href\=\"(?P<data>//mediaklikk.hu/[^\"]*)\"\s?\>(?P<title>[^\<]*)\</a\>)
 film_token_matcher = re.compile("\\\"token\\\":\\\"(?P<data>[^\\\"]*)\\\"")
 # \"token\":\"(?P<data>[^\"]*)\"
