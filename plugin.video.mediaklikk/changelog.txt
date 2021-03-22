@@ -9,3 +9,5 @@
 2019.12.14 v. 0.2.3 Filmstore urls updated
 
 2021.03.20 v. 0.2.4 M4 Sport Plus
+
+2021.03.22 v. 0.2.5 Filmstore fix, Series added

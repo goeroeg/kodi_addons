@@ -31,12 +31,13 @@ stream_matcher = re.compile(".*\\\"file\\\"\\:\\s\\\"(?P<streamurl>.*\\.m3u8).*"
 # .*\"file\"\:\s\"(?P<streamurl>.*\.m3u8).*
 programs_matcher = re.compile(".*mediaStore\\(.*(?P<data>\\[.*\\])\\s*\\)\\;.*", re.MULTILINE|re.DOTALL)
 # .*mediaStore\(.*(?P<data>\[.*\])\s*\)\;.*
-films_matcher = re.compile("(data-src\\=\\\"(?P<image>//mediaklikk.hu/[^\\\"]*)\\\"[^\\>]*\\>(?:[\\s\\n\\r]*\\<[^\\>]*\\>)*\\<a[\\s\\n\\r]*href\\=\\\"(?P<data>//mediaklikk.hu/[^\\\"]*)\\\"\\s?\\>(?P<title>[^\\<]*)\\</a\\>)", re.MULTILINE|re.DOTALL)
-# (data-src\=\"(?P<image>//mediaklikk.hu/[^\"]*)\"\s*\>(?:[\s\n\r]*\<[^\>]*\>)*\<a[\s\n\r]*href\=\"(?P<data>//mediaklikk.hu/[^\"]*)\"\s?\>(?P<title>[^\<]*)\</a\>)
+
+series_delimiter_matcher = re.compile("\\<h2[^\\>]*\\>Sorozatok\\</h2\\>", re.MULTILINE)
+
+films_matcher = re.compile("(data-src\\=\\\"(?P<image>//mediaklikk\\.hu/[^\\\"]*)\\\"[^\\>]*\\>(?:[\\s\\n\\r]*\\<[^\\>]*\\>)*\\<a[\\s\\n\\r]*href\\=\\\"(?P<data>//mediaklikk\\.hu/[^\\\"]*)\\\"[^\\>]*\\>(?P<title>[^\\<]*)\\</a\\>)", re.MULTILINE|re.DOTALL)
+# (data-src\=\"(?P<image>//mediaklikk.hu/[^\"]*)\"[^\>]*\>(?:[\s\n\r]*\<[^\>]*\>)*\<a[\s\n\r]*href\=\"(?P<data>//mediaklikk.hu/[^\"]*)\"[^\>]*\>(?P<title>[^\<]*)\</a\>)
 film_token_matcher = re.compile("\\\"token\\\":\\\"(?P<data>[^\\\"]*)\\\"")
 # \"token\":\"(?P<data>[^\"]*)\"
-series_matcher = re.compile("(location.href\\=\\'(?P<data>//www.mediaklikk.hu/musor/[^']*)'\\\")", re.MULTILINE|re.DOTALL)
-# (location.href\\='(?P<data>//www.mediaklikk.hu/musor/[^']*)'\")
 
 VIDEOS = {'Live': [{'name': 'M1',
                        'thumb': '',
@@ -69,7 +70,8 @@ VIDEOS = {'Live': [{'name': 'M1',
                       ],
           'Témák' : [],
           'Médiatár' : [],
-          'Filmtár' : []
+          'Filmtár' : [],
+          'Sorozatok' : []
           }
 
 def get_url(**kwargs):
@@ -94,8 +96,7 @@ def get_categories():
     :return: The list of video categories
     :rtype: types.GeneratorType
     """
-    return ['Live','Témák','Médiatár','Filmtár']
-    #return VIDEOS.iterkeys()
+    return VIDEOS.keys()
 
 
 def get_videos(category):
@@ -112,9 +113,9 @@ def get_videos(category):
     """
     if category == "Live":
         return VIDEOS[category]
-    elif category == "Filmtár":
+    elif category in ["Filmtár", "Sorozatok"]:
         response = get_filmstore_html()
-        films = get_films(response)
+        films = get_films(response, category.startswith("S"))
         videos = []
         for film in films:
             videos.append({"Title":film[0], "Image":"https:" + film[2], "Token" : film[1]})
@@ -172,16 +173,10 @@ def list_main():
 def get_filmstore_html():
     return requests.get(filmstore_url).text
 
-def get_series(response):
-    series = set()
-    matches = series_matcher.findall(response)
-    for match in matches:
-        series.add("https:" + match[1])
-    return series
-
-def get_films(response):
+def get_films(response, getseries=False):
     films = set()
-    matches = films_matcher.findall(response)
+    filmslen = series_delimiter_matcher.search(response).start()
+    matches = films_matcher.findall(response[filmslen:] if getseries else response[:filmslen])
     for match in matches:
         films.add((match[3].encode("latin_1").decode("utf-8"), match[2], quote(match[1].encode('latin_1')))) # codec problem in website answer
     return films
@@ -189,6 +184,7 @@ def get_films(response):
 def get_film_token(film_url):
     response = requests.get("https:" + film_url).text
     match = film_token_matcher.findall(response)
+    # todo - here also the plot can be checked
     return match[0]
 
 def get_programs():
@@ -342,7 +338,7 @@ def list_items(category):
         for video in videos:
             list_item = xbmcgui.ListItem(label=category)
             list_item.setInfo('video', {'title': video["Title"],
-                                        'genre': video["Title"],
+                                        'genre': "Film" if category == 'Filmtár' else video["Title"],
                                         'mediatype': 'video'})
             list_item.setArt({'thumb': video["Image"], 'icon': video['Image'], 'fanart': video['Image']})
             list_item.setProperty('IsPlayable', 'true')
@@ -410,3 +406,4 @@ if __name__ == '__main__':
     # Call the router function and pass the plugin call parameters to it.
     # We use string slicing to trim the leading '?' from the plugin call paramstring
     router(sys.argv[2][1:])
+
