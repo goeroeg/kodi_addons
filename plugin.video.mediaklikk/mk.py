@@ -39,7 +39,7 @@ series_matcher = re.compile("(location.href\\=\\'(?P<data>//www.mediaklikk.hu/mu
 # (location.href\\='(?P<data>//www.mediaklikk.hu/musor/[^']*)'\")
 
 VIDEOS = {'Live': [{'name': 'M1',
-                       'thumb': "", # 'https://www.mediaklikk.hu/wp-content/plugins/hms-mediaklikk/common/styles/images/mtva_logos_sprite_light_2x.png',
+                       'thumb': '',
                        'video': 'mtv1live',
                        'genre': 'Live TV'},
                       {'name': 'M2',
@@ -49,6 +49,10 @@ VIDEOS = {'Live': [{'name': 'M1',
                       {'name': 'M4 Sport',
                        'thumb': '',
                        'video': 'mtv4live',
+                       'genre': 'Live TV'},
+                      {'name': 'M4 Sport Plusz',
+                       'thumb': '',
+                       'video': 'mtv4plus',
                        'genre': 'Live TV'},
                       {'name': 'M5',
                        'thumb': '',
@@ -61,7 +65,7 @@ VIDEOS = {'Live': [{'name': 'M1',
                       {'name': 'Duna World',
                        'thumb': '',
                        'video': 'dunaworldlive',
-                       'genre': 'Live TV'}					   
+                       'genre': 'Live TV'}
                       ],
           'Témák' : [],
           'Médiatár' : [],
@@ -166,7 +170,7 @@ def list_main():
     xbmcplugin.endOfDirectory(_handle)
 
 def get_filmstore_html():
-    return requests.get(filmstore_url).text         
+    return requests.get(filmstore_url).text
 
 def get_series(response):
     series = set()
@@ -178,28 +182,28 @@ def get_series(response):
 def get_films(response):
     films = set()
     matches = films_matcher.findall(response)
-    for match in matches:        
+    for match in matches:
         films.add((match[3].encode("latin_1").decode("utf-8"), match[2], quote(match[1].encode('latin_1')))) # codec problem in website answer
     return films
 
 def get_film_token(film_url):
     response = requests.get("https:" + film_url).text
     match = film_token_matcher.findall(response)
-    return match[0]    
+    return match[0]
 
 def get_programs():
     response = requests.get(mediastore_url).text
     rawdata = programs_matcher.match(response).group("data")
-    
+
     data = json.loads(rawdata)
 
     programs = []
     keys = video_programs.keys()
 
-    for item in data:   
+    for item in data:
         if item["Channel"] in keys:
             programs.append(item)
-    
+
     return programs
 
 def get_programs_by_topics():
@@ -284,7 +288,7 @@ def list_items(category):
     elif category == 'Médiatár':
         proginfos = get_programs()
 
-        for program in proginfos:            
+        for program in proginfos:
             # Create a list item with a text label and a thumbnail image.
             list_item = xbmcgui.ListItem(label=program["Title"])
             list_item.setProperty('IsPlayable', 'false')
