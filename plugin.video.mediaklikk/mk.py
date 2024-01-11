@@ -34,8 +34,9 @@ programs_matcher = re.compile(".*mediaStore\\(.*(?P<data>\\[.*\\])\\s*\\)\\;.*",
 
 series_delimiter_matcher = re.compile("\\<h2[^\\>]*\\>Sorozatok\\</h2\\>", re.MULTILINE)
 
-films_matcher = re.compile("(data-src\\=\\\"(?P<image>//mediaklikk\\.hu/[^\\\"]*)\\\"[^\\>]*\\>(?:[\\s\\n\\r]*\\<[^\\>]*\\>)*\\<a[\\s\\n\\r]*href\\=\\\"(?P<data>//mediaklikk\\.hu/[^\\\"]*)\\\"[^\\>]*\\>(?P<title>[^\\<]*)\\</a\\>)", re.MULTILINE|re.DOTALL)
-# (data-src\=\"(?P<image>//mediaklikk.hu/[^\"]*)\"[^\>]*\>(?:[\s\n\r]*\<[^\>]*\>)*\<a[\s\n\r]*href\=\"(?P<data>//mediaklikk.hu/[^\"]*)\"[^\>]*\>(?P<title>[^\<]*)\</a\>)
+films_matcher = re.compile("(\\<a\\s*(?:class\\=\\\"[^\\\"]*\\\"\\s*)?href\\=\\\"(?P<data>[^\\\"]*)[^\\<]*\\<div\\s*(?:class\\=\\\"[^\\\"]*\\\")?\\s*data-src\\=\\\"(?P<image>[^\\\"]*)\\\"[^\\>]*\\>\\s*(?:\\<div[^\\>]*\\>\\s*(?:\\</div\\>)?\\s*)*\\<h1[^\\>]*\\>\\s*(?P<title>[^\\<]*)\\</h1\\>)", re.MULTILINE|re.DOTALL)
+# (\<a\s*(?:class\=\"[^\"]*\"\s*)?href\=\"(?P<data>[^\"]*)[^\<]*\<div\s*(?:class\=\"[^\"]*\"\s*)?data-src\=\"(?P<image>[^\"]*)\"[^\>]*\>\s*(?:\<div[^\>]*\>\s*(?:\</div\>)?\s*)*\<h1[^\>]*\>\s*(?P<title>[^\<]*)\</h1\>)
+
 film_token_matcher = re.compile("\\\"token\\\":\\\"(?P<data>[^\\\"]*)\\\"")
 # \"token\":\"(?P<data>[^\"]*)\"
 
@@ -118,7 +119,7 @@ def get_videos(category):
         films = get_films(response, category.startswith("S"))
         videos = []
         for film in films:
-            videos.append({"Title":film[0], "Image":"https:" + film[2], "Token" : film[1]})
+            videos.append({"Title":film[0], "Image":film[1], "Token":film[2]})
         return videos
     else:
         response = requests.get(mediastore_videos_url + category).text
@@ -178,11 +179,11 @@ def get_films(response, getseries=False):
     filmslen = series_delimiter_matcher.search(response).start()
     matches = films_matcher.findall(response[filmslen:] if getseries else response[:filmslen])
     for match in matches:
-        films.add((match[3].encode("latin_1").decode("utf-8"), match[2], quote(match[1].encode('latin_1')))) # codec problem in website answer
+        films.add((match[3].strip().encode("latin_1").decode("utf-8"), match[2], match[1])) # codec problem in website answer
     return films
 
 def get_film_token(film_url):
-    response = requests.get("https:" + film_url).text
+    response = requests.get(film_url).text
     match = film_token_matcher.findall(response)
     # todo - here also the plot can be checked
     return match[0]
@@ -358,7 +359,7 @@ def play_video(path):
     :type path: str
     """
 
-    url = player_url.replace("_videoID_", get_film_token(path) if path.startswith("//") else path)
+    url = player_url.replace("_videoID_", get_film_token(path) if path.startswith("https://mediaklikk.hu") else path)
     response = requests.get(url).text
 
     # parse stream url from player response
