@@ -362,7 +362,7 @@ def play_video(path):
     response = requests.get(url).text
 
     # parse stream url from player response
-    streamurl = "http:" + stream_matcher.match(response).group("streamurl").replace("\\/", "/")
+    streamurl = stream_matcher.match(response).group("streamurl").replace("\\/", "/")
 
     # Create a playable item with a path to play.
     play_item = xbmcgui.ListItem(path=streamurl)
