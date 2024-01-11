@@ -179,7 +179,7 @@ def get_films(response, getseries=False):
     filmslen = series_delimiter_matcher.search(response).start()
     matches = films_matcher.findall(response[filmslen:] if getseries else response[:filmslen])
     for match in matches:
-        films.add((match[3].strip().encode("latin_1").decode("utf-8"), match[2], match[1])) # codec problem in website answer
+        films.add((match[3].strip().encode("latin_1").decode("utf-8"), match[2].encode("latin_1").decode("utf-8"), match[1])) # codec problem in website answer
     return films
 
 def get_film_token(film_url):
